@@ -1,17 +1,13 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport, UIMessage } from "ai"
 import { Send, Sparkles, User, Shield, Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-
-type Message = {
-  id: string
-  role: "user" | "assistant"
-  content: string
-}
 
 const suggestedPrompts = [
   "What are some natural remedies for headaches?",
@@ -22,169 +18,89 @@ const suggestedPrompts = [
   "What foods help boost immunity?",
 ]
 
-const sampleResponses: Record<string, string> = {
-  headache: `Here are some natural approaches that may help with headaches:
-
-**Hydration** - Dehydration is a common headache trigger. Try drinking a full glass of water and continue sipping throughout the day.
-
-**Rest in a quiet, dark room** - This can help especially with tension headaches and migraines.
-
-**Cold or warm compress** - Apply a cold pack to your forehead or a warm compress to the back of your neck for 15-20 minutes.
-
-**Gentle massage** - Massaging your temples, neck, and shoulders can help relieve tension.
-
-**Peppermint or lavender oil** - Some find relief by applying diluted essential oils to temples (patch test first).
-
-**When to seek medical care:** If your headache is severe, sudden ("thunderclap"), accompanied by fever, confusion, stiff neck, or vision changes, please seek immediate medical attention.`,
-
-  sleep: `Here are some evidence-based strategies for better sleep:
-
-**Consistent sleep schedule** - Go to bed and wake up at the same time daily, even on weekends.
-
-**Create a restful environment** - Keep your bedroom cool (65-68°F), dark, and quiet.
-
-**Limit screen time** - Avoid phones, tablets, and computers for at least 1 hour before bed. The blue light can interfere with melatonin production.
-
-**Avoid stimulants** - No caffeine after early afternoon, and limit alcohol close to bedtime.
-
-**Relaxation techniques** - Try deep breathing, progressive muscle relaxation, or gentle stretching before bed.
-
-**Regular exercise** - Physical activity promotes better sleep, but avoid vigorous exercise close to bedtime.
-
-**When to seek help:** If sleep problems persist for more than a few weeks or significantly impact your daily life, consider consulting a healthcare provider.`,
-
-  burn: `For minor burns (small area, first-degree with redness only):
-
-**Cool the burn** - Hold under cool (not cold) running water for 10-20 minutes. Do NOT use ice, butter, or toothpaste.
-
-**After cooling** - Gently pat dry and apply a thin layer of pure aloe vera gel or an over-the-counter burn cream.
-
-**Protect the area** - Cover loosely with a sterile, non-stick bandage if needed.
-
-**Pain relief** - Over-the-counter pain relievers like ibuprofen or acetaminophen can help.
-
-**Keep it clean** - Gently clean daily and reapply fresh bandage.
-
-**Seek immediate medical care if:**
-- The burn is larger than 3 inches
-- It involves the face, hands, feet, genitals, or joints
-- The burn is deep (blistering, white/brown color)
-- The person is very young, elderly, or immunocompromised`,
-
-  stress: `Here are some effective approaches for managing stress and anxiety:
-
-**Deep breathing** - Try the 4-7-8 technique: inhale for 4 seconds, hold for 7, exhale for 8. Repeat 3-4 times.
-
-**Physical activity** - Even a 10-minute walk can help reduce stress hormones and boost mood.
-
-**Limit caffeine and alcohol** - Both can worsen anxiety symptoms.
-
-**Mindfulness and meditation** - Even 5-10 minutes daily can make a difference. Many free apps are available to guide you.
-
-**Connect with others** - Talking to a trusted friend or family member can provide relief and perspective.
-
-**Prioritize sleep** - Lack of sleep amplifies stress responses.
-
-**Limit news and social media** - Set boundaries around information consumption if it increases your stress.
-
-**When to seek help:** If stress or anxiety is interfering with your daily life, relationships, or work, consider speaking with a mental health professional.`,
-
-  throat: `For soothing a sore throat at home:
-
-**Stay hydrated** - Warm liquids like herbal tea with honey, broth, or warm water with lemon can be especially soothing.
-
-**Honey** - A spoonful of honey can coat and soothe the throat (not for children under 1 year).
-
-**Salt water gargle** - Mix 1/4 to 1/2 teaspoon salt in 8 oz warm water and gargle several times daily.
-
-**Humidifier** - Adding moisture to the air can help, especially in dry environments.
-
-**Rest your voice** - Try to speak less and avoid whispering (it actually strains the voice more).
-
-**Lozenges or hard candy** - These can help keep the throat moist.
-
-**Seek medical care if:**
-- Sore throat lasts more than a week
-- You have difficulty breathing or swallowing
-- You have a high fever (over 101°F)
-- There are white patches on your throat
-- You experience joint pain or a rash`,
-
-  immunity: `Supporting your immune system through nutrition:
-
-**Citrus fruits** - Rich in Vitamin C (oranges, lemons, grapefruits)
-
-**Leafy greens** - Spinach, kale, and other greens provide vitamins and antioxidants
-
-**Garlic** - Contains immune-boosting compounds like allicin
-
-**Ginger** - Has anti-inflammatory properties
-
-**Yogurt** - Look for "live active cultures" for probiotic benefits
-
-**Nuts and seeds** - Almonds, sunflower seeds provide Vitamin E
-
-**Lean proteins** - Essential for immune cell production
-
-**Beyond food:**
-- Get adequate sleep (7-9 hours for adults)
-- Exercise regularly but moderately
-- Manage stress levels
-- Stay hydrated
-- Don't smoke and limit alcohol
-
-Remember: No single food or supplement can prevent illness. A balanced approach is best.`,
+function getMessageText(message: UIMessage): string {
+  if (!message.parts || !Array.isArray(message.parts)) return ""
+  return message.parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("")
 }
 
-function getAIResponse(message: string): string {
-  const lowerMessage = message.toLowerCase()
+function formatMessageContent(content: string) {
+  const lines = content.split("\n")
   
-  if (lowerMessage.includes("headache") || lowerMessage.includes("head pain") || lowerMessage.includes("migraine")) {
-    return sampleResponses.headache
-  }
-  if (lowerMessage.includes("sleep") || lowerMessage.includes("insomnia") || lowerMessage.includes("tired")) {
-    return sampleResponses.sleep
-  }
-  if (lowerMessage.includes("burn") || lowerMessage.includes("burned")) {
-    return sampleResponses.burn
-  }
-  if (lowerMessage.includes("stress") || lowerMessage.includes("anxiety") || lowerMessage.includes("anxious") || lowerMessage.includes("worried")) {
-    return sampleResponses.stress
-  }
-  if (lowerMessage.includes("throat") || lowerMessage.includes("sore")) {
-    return sampleResponses.throat
-  }
-  if (lowerMessage.includes("immun") || lowerMessage.includes("cold") || lowerMessage.includes("sick") || lowerMessage.includes("food")) {
-    return sampleResponses.immunity
-  }
-  
-  return `Thank you for your question about "${message}". 
+  return lines.map((line, i) => {
+    // Handle headers
+    if (line.startsWith("### ")) {
+      return (
+        <h3 key={i} className="mt-4 mb-2 font-semibold text-base">
+          {line.slice(4)}
+        </h3>
+      )
+    }
+    if (line.startsWith("## ")) {
+      return (
+        <h2 key={i} className="mt-4 mb-2 font-semibold text-lg">
+          {line.slice(3)}
+        </h2>
+      )
+    }
+    
+    // Handle bullet points
+    if (line.startsWith("- ") || line.startsWith("* ")) {
+      const bulletContent = line.slice(2)
+      return (
+        <li key={i} className="ml-4 mb-1">
+          {formatInlineStyles(bulletContent)}
+        </li>
+      )
+    }
+    
+    // Handle numbered lists
+    const numberedMatch = line.match(/^(\d+)\.\s(.*)/)
+    if (numberedMatch) {
+      return (
+        <li key={i} className="ml-4 mb-1 list-decimal">
+          {formatInlineStyles(numberedMatch[2])}
+        </li>
+      )
+    }
+    
+    // Empty lines
+    if (!line.trim()) {
+      return <div key={i} className="h-2" />
+    }
+    
+    // Regular paragraphs
+    return (
+      <p key={i} className="mb-2 last:mb-0">
+        {formatInlineStyles(line)}
+      </p>
+    )
+  })
+}
 
-While I'd love to provide specific guidance, I want to ensure you receive accurate information. Here are some general wellness principles:
-
-**Listen to your body** - Pay attention to what it's telling you and don't ignore persistent symptoms.
-
-**Stay hydrated** - Water is essential for nearly every bodily function.
-
-**Rest when needed** - Your body heals and recovers during rest.
-
-**Eat a balanced diet** - Whole foods, fruits, vegetables, and lean proteins support overall health.
-
-**Move regularly** - Even gentle movement can improve how you feel.
-
-For specific health concerns, I recommend:
-1. Checking our **Remedy Library** for detailed guidance on common issues
-2. Consulting with a healthcare provider for personalized advice
-
-Is there a specific wellness topic I can help you explore further?`
+function formatInlineStyles(text: string) {
+  // Handle bold text with **
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>
+    }
+    return part
+  })
 }
 
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const { messages, sendMessage, status, setMessages } = useChat({
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
+  })
+
+  const isLoading = status === "streaming" || status === "submitted"
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -198,27 +114,9 @@ export function ChatInterface() {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
-    }
-
-    setMessages((prev) => [...prev, userMessage])
+    const userInput = input.trim()
     setInput("")
-    setIsLoading(true)
-
-    // Simulate AI response delay
-    await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000))
-
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: getAIResponse(userMessage.content),
-    }
-
-    setMessages((prev) => [...prev, assistantMessage])
-    setIsLoading(false)
+    sendMessage({ text: userInput })
   }
 
   const handlePromptClick = (prompt: string) => {
@@ -280,63 +178,58 @@ export function ChatInterface() {
           </div>
         ) : (
           <div className="space-y-6">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex gap-4",
-                  message.role === "user" && "flex-row-reverse"
-                )}
-              >
+            {messages.map((message) => {
+              const messageText = getMessageText(message)
+              
+              return (
                 <div
+                  key={message.id}
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-                    message.role === "assistant"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {message.role === "assistant" ? (
-                    <Sparkles className="h-5 w-5" />
-                  ) : (
-                    <User className="h-5 w-5" />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-5 py-4",
-                    message.role === "assistant"
-                      ? "rounded-tl-sm bg-card border border-border/60"
-                      : "rounded-tr-sm bg-primary text-primary-foreground"
+                    "flex gap-4",
+                    message.role === "user" && "flex-row-reverse"
                   )}
                 >
                   <div
                     className={cn(
-                      "prose prose-sm max-w-none",
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
                       message.role === "assistant"
-                        ? "text-foreground prose-headings:text-foreground prose-strong:text-foreground"
-                        : "text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
                     )}
                   >
-                    {message.content.split("\n").map((line, i) => (
-                      <p key={i} className={cn("mb-2 last:mb-0", !line && "h-2")}>
-                        {line.startsWith("**") && line.endsWith("**") ? (
-                          <strong>{line.slice(2, -2)}</strong>
-                        ) : line.startsWith("**") ? (
-                          <>
-                            <strong>{line.match(/\*\*(.*?)\*\*/)?.[1]}</strong>
-                            {line.replace(/\*\*.*?\*\*/, "")}
-                          </>
-                        ) : (
-                          line || "\u00A0"
-                        )}
-                      </p>
-                    ))}
+                    {message.role === "assistant" ? (
+                      <Sparkles className="h-5 w-5" />
+                    ) : (
+                      <User className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-2xl px-5 py-4",
+                      message.role === "assistant"
+                        ? "rounded-tl-sm bg-card border border-border/60"
+                        : "rounded-tr-sm bg-primary text-primary-foreground"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "prose prose-sm max-w-none",
+                        message.role === "assistant"
+                          ? "text-foreground prose-headings:text-foreground prose-strong:text-foreground"
+                          : "text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground"
+                      )}
+                    >
+                      {message.role === "assistant" ? (
+                        formatMessageContent(messageText)
+                      ) : (
+                        <p>{messageText}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            {isLoading && (
+              )
+            })}
+            {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <Sparkles className="h-5 w-5" />
@@ -377,6 +270,7 @@ export function ChatInterface() {
             placeholder="Type your health question..."
             className="min-h-[60px] resize-none rounded-2xl border-border/60 bg-card pr-14 text-base shadow-lg shadow-primary/5 focus:shadow-xl focus:shadow-primary/10"
             rows={2}
+            disabled={isLoading}
           />
           <Button
             type="submit"
