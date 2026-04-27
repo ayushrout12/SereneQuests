@@ -12,26 +12,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'SereneQuests - Your Wellness Companion',
+  title: 'SereneQuests — AI-Powered Wellness App',
   description: 'Premium health guidance app providing safe home-care remedies, wellness information, and AI-powered health assistance. Not a substitute for professional medical advice.',
   keywords: ['health', 'wellness', 'remedies', 'home care', 'AI health assistant'],
   authors: [{ name: 'SereneQuests' }],
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/icon.svg',
+    apple: '/apple-icon.jpg',
   },
 }
 
