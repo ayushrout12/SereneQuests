@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/serenequests.png', // MUST be in /public
+        url: 'https://serenequests.com/serenequests.png?v=2', // ✅ FIXED
         width: 1200,
         height: 630,
         alt: 'SereneQuests preview',
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SereneQuests',
     description: 'An AI-Powered Wellness App',
-   images: ['/serenequests.png?v=2']
+    images: ['https://serenequests.com/serenequests.png?v=2'], // ✅ SAME URL
   },
 };
 
@@ -61,9 +61,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased bg-background">
