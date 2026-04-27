@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SereneQuests',
     description: 'An AI-Powered Wellness App',
-    images: ['/serenequests.png'], // same image
+   images: ['/serenequests.png?v=2']
   },
 };
 
